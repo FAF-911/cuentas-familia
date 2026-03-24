@@ -663,8 +663,7 @@ window.handleScanFile=async input=>{
   const useBtn=document.getElementById('scan-use');
   if(status)status.style.display='flex';
   try{
-    const key=CFG.anthropicKey||secGet('cf9_ank')||secGet('cf8_ank');
-    if(!key)throw new Error('Falta el API Key. Ve a Config → Escáner IA');
+    // Key handled by Netlify proxy — no client-side key needed
 
     // STEP 1: Read file as base64 — multi-method for iOS compatibility
     let b64,mediaType;
@@ -683,41 +682,31 @@ window.handleScanFile=async input=>{
 
     // STEP 2: Call Anthropic with explicit CORS mode + timeout
     const cats=getCats().map(c=>c.id+':'+c.lbl).join(', ');
+    // Call via Netlify serverless proxy — no CORS issues on iOS Safari
     const controller=new AbortController();
     const timeout=setTimeout(()=>controller.abort(),30000);
-
-    // Use XMLHttpRequest — more compatible with iOS Safari CORS than fetch
-    const data=await new Promise((resolve,reject)=>{
-      const xhr=new XMLHttpRequest();
-      xhr.open('POST','https://api.anthropic.com/v1/messages',true);
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.setRequestHeader('x-api-key',key);
-      xhr.setRequestHeader('anthropic-version','2023-06-01');
-      xhr.setRequestHeader('anthropic-dangerous-allow-browser','true');
-      xhr.timeout=30000;
-      xhr.onload=()=>{
-        if(xhr.status>=200&&xhr.status<300){
-          try{resolve(JSON.parse(xhr.responseText));}
-          catch(e){reject(new Error('Respuesta inválida de la API'));}
-        }else{
-          let msg='Error '+xhr.status;
-          try{const e=JSON.parse(xhr.responseText);msg=e.error?.message||msg;}catch(e){}
-          if(xhr.status===401)msg='API Key inválido — ve a Config → Escáner IA';
-          if(xhr.status===400)msg='Formato de imagen no soportado';
-          reject(new Error(msg));
-        }
-      };
-      xhr.onerror=()=>reject(new Error('Error de red — verifica tu conexión'));
-      xhr.ontimeout=()=>reject(new Error('Timeout — intenta con una imagen más pequeña'));
-      xhr.send(JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:800,
-        messages:[{role:'user',content:[
-          {type:isPDF?'document':'image',source:{type:'base64',media_type:mediaType,data:b64}},
-          {type:'text',text:'Analiza este comprobante. Responde SOLO con JSON sin markdown:\n{"desc":"descripción corta","monto":0.00,"fecha":"YYYY-MM-DD","cat":"id","notas":"","confianza":"alta|media|baja"}\nCategorías: '+cats+'\nFecha hoy si no aparece: '+new Date().toISOString().split('T')[0]}
-        ]}]
-      }));
-    });
+    let resp;
+    try{
+      resp=await fetch('/api/scan',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:800,
+          messages:[{role:'user',content:[
+            {type:isPDF?'document':'image',source:{type:'base64',media_type:mediaType,data:b64}},
+            {type:'text',text:'Analiza este comprobante. Responde SOLO con JSON sin markdown:\n{"desc":"descripción corta","monto":0.00,"fecha":"YYYY-MM-DD","cat":"id","notas":"","confianza":"alta|media|baja"}\nCategorías: '+cats+'\nFecha hoy si no aparece: '+new Date().toISOString().split('T')[0]}
+          ]}]
+        }),
+        signal:controller.signal
+      });
+    }finally{clearTimeout(timeout);}
+    if(!resp.ok){
+      let msg='Error '+resp.status;
+      try{const e=await resp.json();msg=e.error?.message||msg;}catch(e){}
+      throw new Error(msg);
+    }
+    const data=await resp.json();
     const text=data.content[0]?.text||'';
     SCAN_RESULT=JSON.parse(text.replace(/```json|```/g,'').trim());
     const cat=SCAN_RESULT.cat?getCats().find(c=>c.id===SCAN_RESULT.cat):null;
