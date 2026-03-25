@@ -412,12 +412,12 @@ select.fi{
 // ── COLORS: Stephane=BLUE(0) Raymond=GREEN(1) Regine=RED(2) ──
 const AVC=[{bg:'#DCEFFE',txt:'#0B3060'},{bg:'#DCFAED',txt:'#083D25'},{bg:'#FCECEA',txt:'#7A1E13'}];
 const DEFAULT_CATS=[
-  {id:'moto',  lbl:'Motocicleta',   ico:'🏍️',bg:'#EAF0FD',txt:'#0B3060',bar:'#1550A0'},
-  {id:'aldea', lbl:'Aldea Xiik',    ico:'🏡',bg:'#DCFAED',txt:'#083D25',bar:'#0F6B42'},
-  {id:'medico',lbl:'Médicos (Papá)',ico:'🏥',bg:'#FCECEA',txt:'#7A1E13',bar:'#B83028'},
-  {id:'viajes',lbl:'Viajes',        ico:'✈️',bg:'#FEF0D8',txt:'#6A3800',bar:'#A85A00'},
-  {id:'prest', lbl:'Préstamo',      ico:'💸',bg:'#F3EFFE',txt:'#3D1F8A',bar:'#6B3FD0'},
-  {id:'otros', lbl:'Otros',         ico:'📦',bg:'#EDEBE5',txt:'#3A3A36',bar:'#888'},
+  {id:'seguro',lbl:'Seguro GMM Papá',ico:'🛡️',bg:'#FEF0D8',txt:'#6A3800',bar:'#A85A00'},
+  {id:'aldea', lbl:'Aldea Xiik',     ico:'🏡',bg:'#DCFAED',txt:'#083D25',bar:'#0F6B42'},
+  {id:'medico',lbl:'Médicos (Papá)', ico:'🏥',bg:'#FCECEA',txt:'#7A1E13',bar:'#B83028'},
+  {id:'renta', lbl:'Renta Papá',     ico:'🏠',bg:'#EAF0FD',txt:'#0B3060',bar:'#1550A0'},
+  {id:'prest', lbl:'Préstamo',       ico:'💸',bg:'#F3EFFE',txt:'#3D1F8A',bar:'#6B3FD0'},
+  {id:'otros', lbl:'Otros',          ico:'📦',bg:'#EDEBE5',txt:'#3A3A36',bar:'#888'},
 ];
 const PALETTE=[
   {bg:'#EAF0FD',txt:'#0B3060',bar:'#1550A0'},{bg:'#DCFAED',txt:'#083D25',bar:'#0F6B42'},
@@ -425,7 +425,7 @@ const PALETTE=[
   {bg:'#F3EFFE',txt:'#3D1F8A',bar:'#6B3FD0'},{bg:'#EDEBE5',txt:'#3A3A36',bar:'#888'},
   {bg:'#FFF0F8',txt:'#7A1060',bar:'#C0196B'},{bg:'#F0FEF4',txt:'#0A4020',bar:'#1A8A44'},
 ];
-const EMOJI_SUGGEST={moto:['🏍️','🛵','⛽','🔧'],auto:['🚗','🚙','⛽'],casa:['🏠','🏡','🔑'],aldea:['🏡','🌴','🏊','🌿'],xiik:['🏡','🌴','🌿'],medico:['🏥','💊','🩺','🩹'],doctor:['🩺','💉','🏥'],papa:['👨','❤️','🏥'],viaje:['✈️','🌍','🧳','🏖️'],super:['🛒','🥦','🍎'],comida:['🍽️','🥘','🍕'],otros:['📦','📝','💼']};
+const EMOJI_SUGGEST={seguro:['🛡️','🏥','📋','💳'],renta:['🏠','🔑','📆','💰'],auto:['🚗','🚙','⛽'],casa:['🏠','🏡','🔑'],aldea:['🏡','🌴','🏊','🌿'],xiik:['🏡','🌴','🌿'],medico:['🏥','💊','🩺','🩹'],doctor:['🩺','💉','🏥'],papa:['👨','❤️','🏥'],viaje:['✈️','🌍','🧳','🏖️'],super:['🛒','🥦','🍎'],comida:['🍽️','🥘','🍕'],otros:['📦','📝','💼']};
 const ALL_EMOJI=['😀','😊','💪','🎯','🎉','🎁','⭐','❤️','🔥','💡','✅','📌','💰','💳','💸','🤝','🏦','💼','🔑','🏠','🏡','🏥','🏖️','🌴','🌿','🚗','🏍️','🛵','✈️','🌍','🧳','🛒','🍽️','💊','🩺','⚡','💧','🎓','💪','👕','🎂','🐕','📦','🔧','🛞','⛽'];
 function suggestEmoji(t){const k=Object.keys(EMOJI_SUGGEST).find(k=>t.toLowerCase().includes(k));return k?EMOJI_SUGGEST[k]:ALL_EMOJI.slice(0,16);}
 const MOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -443,7 +443,11 @@ let CFG={apiKey:'',baseId:'appESM4NEcajaFxe2',tableName:'movimientos',members:['
 let CUSTOM_CATS=[],RECS=[],BUDGETS={},BUDGET_RIDS={},CAT_RIDS={};
 let loading=false,TAB='dash',MODAL=null,CM=new Date().getMonth(),CY=new Date().getFullYear();
 function getCats(){return[...DEFAULT_CATS,...CUSTOM_CATS];}
-function catById(id){return getCats().find(c=>c.id===id)||DEFAULT_CATS[5];}
+function catById(id){
+  const CAT_ALIAS={'hospital':'medico','seguro':'seguro','seguro_mama':'otros','vicky':'otros','petct':'medico','aldea':'aldea','renta':'renta'};
+  const resolved=CAT_ALIAS[id]||id;
+  return getCats().find(c=>c.id===resolved)||getCats().find(c=>c.id===id)||DEFAULT_CATS[5];
+}
 
 function saveCFG(){
   const safe={...CFG,apiKey:'',anthropicKey:''};
