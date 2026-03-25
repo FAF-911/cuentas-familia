@@ -1,9 +1,11 @@
 export default async (req) => {
-  const apiKey = Netlify.env.get('ANTHROPIC_API_KEY');
+  const envKey = Netlify.env.get('ANTHROPIC_API_KEY');
+  const headerKey = req.headers.get('x-anthropic-key');
+  const apiKey = envKey || headerKey;
 
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: { message: 'ANTHROPIC_API_KEY no configurado en Netlify' } }),
+      JSON.stringify({ error: { message: 'ANTHROPIC_API_KEY no configurado' } }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
