@@ -849,77 +849,79 @@ window.submitG=async()=>{
 
 // ── MODAL: LIQUIDACIÓN ──
 function smartSettle(){
-  // Splitwise algorithm: minimize transactions
-  const nets={};
-  CFG.members.forEach(m=>{nets[m]=Math.round(netBal(m)*100)/100;});
-  const pos=[],neg=[];
-  Object.entries(nets).forEach(([m,v])=>{
-    if(v>0.5)pos.push({m,v});
-    else if(v<-0.5)neg.push({m,v:-v});
+  var nets={};
+  CFG.members.forEach(function(m){nets[m]=Math.round(netBal(m)*100)/100;});
+  var pos=[],neg=[];
+  Object.entries(nets).forEach(function(e){
+    if(e[1]>0.5)pos.push([e[0],e[1]]);
+    else if(e[1]<-0.5)neg.push([e[0],-e[1]]);
   });
-  pos.sort((a,b)=>b.v-a.v);neg.sort((a,b)=>b.v-a.v);
-  const txns=[];
+  pos.sort(function(a,b){return b[1]-a[1];});
+  neg.sort(function(a,b){return b[1]-a[1];});
+  var txns=[];
   while(pos.length&&neg.length){
-    const cr=pos[0],db=neg[0];
-    const amt=Math.min(cr.v,db.v);
-    txns.push({from:db.m,to:cr.m,amt:Math.round(amt)});
-    cr.v-=amt;db.v-=amt;
-    if(cr.v<0.5)pos.shift();
-    if(db.v<0.5)neg.shift();
+    var cr=pos[0],db=neg[0];
+    var amt=Math.min(cr[1],db[1]);
+    txns.push({from:db[0],to:cr[0],amt:Math.round(amt)});
+    cr[1]-=amt;db[1]-=amt;
+    if(cr[1]<0.5)pos.shift();
+    if(db[1]<0.5)neg.shift();
   }
   return txns;
 }
-function liqH(d={}){
-  const txns=smartSettle();
-  const today=new Date().toISOString().split('T')[0];
-  const avc=n=>{const i=CFG.members.indexOf(n);return [{bg:'#DCEFFE',txt:'#0B3060'},{bg:'#DCFAED',txt:'#083D25'},{bg:'#FCECEA',txt:'#7A1E13'}][i>=0?i%3:0];};
-  const ini=n=>n.slice(0,2).toUpperCase();
-  const fmtA=v=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(v);
-
-  let smartHTML='';
+function liqH(d){
+  d=d||{};
+  var txns=smartSettle();
+  var today=new Date().toISOString().split('T')[0];
+  var fmtA=function(v){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0}).format(v);};
+  var ini=function(n){return n.slice(0,2).toUpperCase();};
+  var smartHTML='';
   if(txns.length===0){
     smartHTML='<div style="text-align:center;padding:24px 0;color:var(--ink3);font-size:14px">🤝 ¡Todos a mano! Sin deudas pendientes.</div>';
   } else {
-    smartHTML=txns.map((t,i)=>{
-      const af=avc(t.from),at=avc(t.to);
-      return\`<div style="background:var(--s2);border-radius:var(--rm);padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
-        <div style="width:28px;height:28px;border-radius:50%;background:\${af.bg};color:\${af.txt};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">\${ini(t.from)}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">\${t.from} → \${t.to}</div>
-          <div style="font-size:11px;color:var(--ink3)">pago directo sugerido</div>
-        </div>
-        <div style="font-size:16px;font-weight:800;color:var(--red);font-family:'DM Mono',monospace">\${fmtA(t.amt)}</div>
-        <button class="btn btn-sm btn-ok" onclick="quickSettle('\${t.from}','\${t.to}',\${t.amt})">✓ Registrar</button>
-      </div>\`;
+    smartHTML=txns.map(function(t){
+      return '<div style="background:var(--s2);border-radius:var(--rm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'+
+        '<div style="flex:1"><div style="font-size:13px;font-weight:700">'+t.from+' \u2192 '+t.to+'</div>'+
+        '<div style="font-size:11px;color:var(--ink3)">pago directo sugerido</div></div>'+
+        '<div style="font-size:16px;font-weight:800;color:var(--red);font-family:\'DM Mono\',monospace">'+fmtA(t.amt)+'</div>'+
+        '<button class="btn btn-sm btn-ok" onclick="quickSettle(\''+t.from+'\',\''+t.to+'\','+t.amt+')">✓ Registrar</button>'+
+        '</div>';
     }).join('');
   }
-
-  return\`<div class="m-drag"></div><div class="m-body">
-    <div class="m-ttl">💡 Liquidación inteligente</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:14px;background:var(--gbg);color:var(--gtxt);border-radius:var(--rs);padding:8px 12px">\${txns.length} transacción\${txns.length!==1?'es':''} para saldar todas las deudas (mínimo posible)</div>
-    \${smartHTML}
-    <div style="border-top:1px solid var(--b1);margin:14px 0 10px"></div>
-    <div style="font-size:11px;color:var(--ink3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">O registrar pago manual</div>
-    <div class="fg"><label class="fl">Monto</label><div class="amt-wrap"><span class="amt-sym">$</span><input class="fi fi-money" id="lm" type="text" inputmode="decimal" value="\${d.amt||''}" placeholder="0.00"></div></div>
-    <div class="two-col">
-      <div class="fg"><label class="fl">¿Quién paga?</label><select class="fi" id="lf">\${CFG.members.map(m=>'<option value="'+m+'"'+(m===(d.from||CFG.myName||CFG.members[0])?' selected':'')+'>'+m+'</option>').join('')}</select></div>
-      <div class="fg"><label class="fl">¿A quién?</label><select class="fi" id="lt">\${CFG.members.map(m=>'<option value="'+m+'"'+(m===(d.to||CFG.members[1])?' selected':'')+'>'+m+'</option>').join('')}</select></div>
-    </div>
-    <div class="two-col">
-      <div class="fg"><label class="fl">Fecha</label><input class="fi" id="ld" type="date" value="\${today}"></div>
-      <div class="fg"><label class="fl">Notas</label><input class="fi" id="ln" type="text" placeholder="Transferencia…" autocomplete="off"></div>
-    </div>
-    <div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="submitL()">Registrar</button></div>
-  </div>\`;
+  var memberOpts=CFG.members.map(function(m){
+    return '<option value="'+m+'"'+((m===(d.from||CFG.myName||CFG.members[0]))?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  var memberOpts2=CFG.members.map(function(m){
+    return '<option value="'+m+'"'+((m===(d.to||CFG.members[1]))?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  return '<div class="m-drag"></div><div class="m-body">'+
+    '<div class="m-ttl">💡 Liquidación inteligente</div>'+
+    '<div style="font-size:12px;color:var(--gtxt);background:var(--gbg);border-radius:var(--rs);padding:8px 12px;margin-bottom:14px">'+
+    txns.length+' transacci\u00f3n'+(txns.length!==1?'es':'')+' para saldar todas las deudas (m\u00ednimo posible)</div>'+
+    smartHTML+
+    '<div style="border-top:1px solid var(--b1);margin:14px 0 10px"></div>'+
+    '<div style="font-size:11px;color:var(--ink3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">O registrar pago manual</div>'+
+    '<div class="fg"><label class="fl">Monto</label><div class="amt-wrap"><span class="amt-sym">$</span>'+
+    '<input class="fi fi-money" id="lm" type="text" inputmode="decimal" value="'+(d.amt||'')+'" placeholder="0.00"></div></div>'+
+    '<div class="two-col">'+
+    '<div class="fg"><label class="fl">\u00bfQui\u00e9n paga?</label><select class="fi" id="lf">'+memberOpts+'</select></div>'+
+    '<div class="fg"><label class="fl">\u00bfA qui\u00e9n?</label><select class="fi" id="lt">'+memberOpts2+'</select></div>'+
+    '</div>'+
+    '<div class="two-col">'+
+    '<div class="fg"><label class="fl">Fecha</label><input class="fi" id="ld" type="date" value="'+today+'"></div>'+
+    '<div class="fg"><label class="fl">Notas</label><input class="fi" id="ln" type="text" placeholder="Transferencia\u2026" autocomplete="off"></div>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn" onclick="closeModal()">Cancelar</button>'+
+    '<button class="btn btn-p" onclick="submitL()">Registrar</button></div></div>';
 }
-window.quickSettle=async(from,to,amt)=>{
+window.quickSettle=async function(from,to,amt){
   try{
-    const date=new Date().toISOString().split('T')[0];
-    await atC('movimientos',{tipo:'liquidacion',fecha:date,pagador:from,para:to,monto:amt,notas:'Liquidación inteligente — '+date,estado:'pagado'});
+    var date=new Date().toISOString().split('T')[0];
+    await atC('movimientos',{tipo:'liquidacion',fecha:date,pagador:from,para:to,monto:amt,notas:'Liquidaci\u00f3n inteligente \u2014 '+date,estado:'pagado'});
     await loadData();
     closeModal();
-    toast('✓ Pago de '+from+' → '+to+' registrado');
-  }catch(e){toast('❌ '+e.message);}
+    toast('\u2713 Pago de '+from+' \u2192 '+to+' registrado');
+  }catch(e){toast('\u274c '+e.message);}
 };
 
 window.submitL=async()=>{
