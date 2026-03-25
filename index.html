@@ -689,7 +689,7 @@ window.handleScanFile=async input=>{
     try{
       resp=await fetch('/api/scan',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json','x-anthropic-key':CFG.anthropicKey||''},
         body:JSON.stringify({
           model:'claude-sonnet-4-20250514',
           max_tokens:800,
